@@ -551,15 +551,15 @@ sendeFreundschaftsanfrage(NutzerA, NutzerX)</panel_attributes>
       <x>847</x>
       <y>935</y>
       <w>33</w>
-      <h>352</h>
+      <h>341</h>
     </coordinates>
     <panel_attributes>lt=.</panel_attributes>
-    <additional_attributes>10.0;10.0;10.0;300.0</additional_attributes>
+    <additional_attributes>10.0;10.0;10.0;290.0</additional_attributes>
   </element>
   <element>
     <id>UMLGeneric</id>
     <coordinates>
-      <x>869</x>
+      <x>968</x>
       <y>55</y>
       <w>242</w>
       <h>110</h>
@@ -643,10 +643,10 @@ Freundesliste</panel_attributes>
       <x>583</x>
       <y>935</y>
       <w>33</w>
-      <h>352</h>
+      <h>341</h>
     </coordinates>
     <panel_attributes>lt=.</panel_attributes>
-    <additional_attributes>10.0;10.0;10.0;300.0</additional_attributes>
+    <additional_attributes>10.0;10.0;10.0;290.0</additional_attributes>
   </element>
   <element>
     <id>Relation</id>
@@ -662,28 +662,6 @@ Freundesliste</panel_attributes>
   <element>
     <id>UMLSpecialState</id>
     <coordinates>
-      <x>847</x>
-      <y>1254</y>
-      <w>22</w>
-      <h>22</h>
-    </coordinates>
-    <panel_attributes>type=termination</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>UMLSpecialState</id>
-    <coordinates>
-      <x>583</x>
-      <y>1254</y>
-      <w>22</w>
-      <h>22</h>
-    </coordinates>
-    <panel_attributes>type=termination</panel_attributes>
-    <additional_attributes/>
-  </element>
-  <element>
-    <id>UMLSpecialState</id>
-    <coordinates>
       <x>286</x>
       <y>1265</y>
       <w>22</w>
@@ -691,5 +669,50 @@ Freundesliste</panel_attributes>
     </coordinates>
     <panel_attributes>type=termination</panel_attributes>
     <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>847</x>
+      <y>1254</y>
+      <w>22</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes/>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>594</x>
+      <y>1232</y>
+      <w>275</w>
+      <h>44</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;-
+melde(NutzerA, NutzerX)</panel_attributes>
+    <additional_attributes>10.0;20.0;230.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>583</x>
+      <y>1254</y>
+      <w>22</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes/>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>440</x>
+      <y>1243</y>
+      <w>154</w>
+      <h>33</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;120.0;10.0</additional_attributes>
   </element>
 </diagram>

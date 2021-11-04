@@ -1,0 +1,191 @@
+swagger: "2.0"
+info:
+  description: "Beschreibung"
+  version: "1.0.0"
+  title: "V.I.G-Mini"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+tags:
+- name: "/account"
+  description: ""
+- name: "/profil"
+  description: "Schnittstelle für Daten rund um die Tierprofile"
+- name: "/list"
+  description: "Beschreibung"
+- name: "/chat"
+  description: ""
+- name: "/moderator"
+  description: ""
+
+  externalDocs:
+    description: "Find out more about our store"
+    url: "http://swagger.io"
+schemes:
+- "https"
+- "http"
+paths:
+  
+  /new{firstname, lastname, email, password}:
+    post:
+      tags:
+      - "/account"
+      summary: "erstelle account"
+      description: ""
+      
+  /information/update{firstname, lastname, email, password, new_password}:
+    post:
+      tags:
+      - "/account"
+      summary: "nutzerdaten aktualisieren"
+      description: ""
+      
+  /login{ email, password}:
+    post:
+      tags:
+      - "/account"
+      summary: ""
+      description: ""
+      
+  /information{ email}:
+    get:
+      tags:
+      - "/account"
+      summary: "erhalte Accountdaten (email name, einstellungen etc)"
+      description: ""
+  /onlineOfflineStatus{ email}:
+    get:
+      tags:
+      - "/account"
+      summary: "online/offline Status aktualisieren auch per POST (status wird bei login gesetzt)"
+      description: ""
+  
+  /getGps{account}:
+    get:
+      tags:
+      - "/account"
+      summary: "Gps Koordinaten des Nutzers"
+      description: ""
+  /setGps{account}:
+    post:
+      tags:
+      - "/account"
+      summary: ""
+      description: ""
+      
+  /create{account, profilinfoArr}:
+    post:
+      tags:
+      - "/profil"
+      summary: "Profil erstellen"
+      description: ""
+  
+  /delete{account, profilId}:
+    delete:
+      tags:
+      - "/profil"
+      summary: "Profil löschen"
+      description: ""
+      
+  /getProfils{account}:
+    get:
+      tags:
+      - "/profil"
+      summary: "Auflistung der Tierprofile eines Accounts"
+      description: ""
+  
+  /getProfilInfo{account, profilID}:
+    get:
+      tags:
+      - "/profil"
+      summary: "Umfangreiche Informationen eines Profils"
+      description: ""
+      
+  /edit{profilinfoArr}:
+    post:
+      tags:
+      - "/profil"
+      summary: "editieren von Profildaten"
+      description: ""
+  /sendFriendRequest{fromProfil, ToProfil}:
+    get:
+      tags:
+      - "/profil"
+      summary: "speichern der Freundesanfrage"
+      description: ""
+      
+  /report{fromProfil, reportedProfil, chatMsg}:
+    post:
+      tags:
+      - "/profil"
+      summary: "Ein Profil melden können"
+      description: ""
+      
+      
+      
+  /addEntry{UserID, listType, listEntry}:
+    post:
+      tags:
+      - "/list"
+      summary: "füge Profil X in Liste X hinzu"
+      description: ""
+  /get{UserID, listType, listEntry}:
+    get:
+      tags:
+      - "/list"
+      summary: "hole alle Listeneinträge"
+      description: ""
+      
+  /deleteEntry{UserID, listType, listEntry}:
+    delete:
+      tags:
+      - "/list"
+      summary: "lösche Profil X aus Liste X"
+      description: ""
+  
+  /getMessages{from, to}:
+    get:
+      tags:
+      - "/chat"
+      summary: "hole Nachrichtenverlauf"
+      description: ""
+      
+  /deleteMessage{from, to, message, date}:
+    delete:
+      tags:
+      - "/chat"
+      summary: "lösche Nachricht"
+      description: ""
+  /newMessage{from, to, message, date}:
+    post:
+      tags:
+      - "/chat"
+      summary: "aktualisiere Chatverlauf"
+      description: ""
+  
+  
+  /saveFilter{profil}:
+    post:
+      tags:
+      - "/profil"
+      summary: ""
+      description: ""
+      
+  /banUser{user, moderatorID, reason, time, permanent}:
+    post:
+      tags:
+      - "/moderator"
+      summary: "Nutzer sperren"
+      description: ""
+  /getReports{moderatorID}:
+    get:
+      tags:
+      - "/moderator"
+      summary: "Liste an Meldungen"
+      description: ""
+  
+  
+  
+      
+
+      
