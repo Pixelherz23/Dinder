@@ -9,6 +9,9 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.exceptions import BadRequest
 from functools import wraps
 from  pathlib import Path
+import pathlib
+from flask_cors import CORS, cross_origin
+
 
 
 #TODO
@@ -29,14 +32,14 @@ ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hgbkgjbkhvbjhv'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
+CORS(app)
 
 
 def decodeToken(token):
     if not token:
         return jsonify({'msg': 'Token not found'})
     try: 
-         return jwt.decode(token,app.config['SECRET_KEY'])
+        return jwt.decode(token,app.config['SECRET_KEY'])
     except Exception as e:
         print(e)
         return jsonify({'message' : str(e)}), 403
@@ -251,7 +254,7 @@ def status():
 
 
 """
-{"account": "jj@gmail.de",  
+{
  "profilInfo": 
     {
       "profilName": "Doe",
@@ -273,7 +276,8 @@ def status():
 #oben das json Format, welches /profil/create benötigt
 @app.route("/profil/create", methods= ['POST'])
 @token_required
-def addEntry():
+def createProfil():
+   dicUser = decodeToken(request.args.get('token'))
    json = request.get_json()
    try:
        merkmalID = callSoredProcReturn('create_merkmal', (json['merkmal']['alter'],json['merkmal']['geschlecht'],json['merkmal']['groesse'],json['Tier']['tierID'],0))
@@ -281,37 +285,69 @@ def addEntry():
        vormerkListeID = callSoredProcReturn('create_vormerkliste',(0,))
        likeListeID = callSoredProcReturn('create_likeliste',(0,))
        query = 'INSERT INTO Profil (profilName ,beschreibung,bewertungPositiv, bewertungNegativ, konto_email, Merkmal_merkmaleID, LikeListe_likelisteID, VormerkListe_vormerkListeID) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
-       exeQuery(query, (json['profilInfo']['profilName'],json['profilInfo']['beschreibung'],0,0,json['account'],merkmalID[4],likeListeID[0],vormerkListeID[0]), True)
+       exeQuery(query, (json['profilInfo']['profilName'],json['profilInfo']['beschreibung'],0,0,dicUser['user'],merkmalID[4],likeListeID[0],vormerkListeID[0]), True)
    except mysql.connector.Error as e:  
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
-   
-   return Response(status=200)
+   else:
+       return Response(status=200)
 
 #ungestestet
 @app.route("/profil/uploadImage", methods= ['POST'])
 @token_required
 def uploadImage():
-    accEmail =  request.form.get('accountEmail')
+    dicUser = decodeToken(request.args.get('token'))
     profilName = request.form.get('profilName') 
 
-    dirOfUser = UPLOAD_FOLDER + '/'+accEmail
+    dirOfUser = UPLOAD_FOLDER + dicUser['user']
     if not os.path.exists(dirOfUser):
        os.makedirs(dirOfUser)
 
     if 'image'  in request.files:
         
         pic = request.files['image']
-        path = os.path.join(dirOfUser, profilName)
+        print('============')
+        print(dirOfUser)
+        print(profilName)
+        print(pic.filename)
+        print('============')
+        newImageName =profilName + pathlib.Path(pic.filename).suffix
+        path = os.path.join(dirOfUser, newImageName)
         pic.save(path)
         try:
-            exeQuery('UPDATE Profil SET profilbild = %s WHERE profilName = %s AND konto_email = %s)  ', (path, profilName, accEmail), True)
+            exeQuery('UPDATE Profil SET profilbild = %s WHERE profilName = %s AND konto_email = %s', (path, profilName, dicUser['user']), True)
         except mysql.connector.Error as e:  
             print(e) 
             return abort(400, '[ERROR]: '+str(e))
+        else:
+            return Response(status = 200)
     else:
         abort(400, '[ERROR]: form param "pic" ic missing')
-   
+
+
+"""
+{"account": "jj@gmail.de",  
+ "profilInfo": 
+    {
+      "profilName": "Doe",
+      //"profilbilid": //Profilbild muss seperat geschickt werden
+      "beschreibung": "Balaklaknln"
+    },
+    "merkmal":{
+        "alter":3, 
+        "geschlecht": 1,
+        "groesse": 125
+    }
+    "Tier":{
+        "tierID": 2
+    }
+ }
+ #Wat about Tier
+""" 
+@app.route("/list/addEntry", methods= ['POST'])
+@token_required
+def addEntry():
+    return Response(status = 200)
 
 
 """ 
