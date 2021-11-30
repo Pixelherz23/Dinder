@@ -1,0 +1,16 @@
+-Mitgliedschafft pausieren: eigentlich reicht ja nur so ein Toggle switch in den Einstellungen des Nutzers. Zeitraum ist recht suboptimal. Ist ja recht spontan ob man wieder einsteigen will
+-Chat unabhängig von Freund? Schreibe ich mit Freund Nutzer oder Pfofl
+-Vormerkbutton
+-LikeButton
+-Vormerkbutton
+
+
+-schau ich aus der sicht eines NUzter oder eines PRofils
+
+
+
+-Thomas: nur chat zwischen Freunden und LikeListe
+	schaue aus der Sicht des Nutzers
+
+
+Frage an NIls: Chat nur unter Freunden oder Chat zu jedem? Chat zu jedem => Mockups ändern das es einen Reiter "Chat" gibt

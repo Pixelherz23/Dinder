@@ -8,11 +8,13 @@ import os
 from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.exceptions import BadRequest
 from functools import wraps
+from  pathlib import Path
 
 
 #TODO
 # Maybe delete "," of tuple with multiple entries?
 #Create account/profilfolder for pics
+#MErke ein User darf nicht zwei Profile haben die gleich heißen!!
 dbLoginInfo = {
     'host' : 'localhost',
     'port': '3306',
@@ -21,8 +23,8 @@ dbLoginInfo = {
     'database' : 'dindersql'
 }
 
-UPLOAD_FOLDER = '~/pics'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+UPLOAD_FOLDER = 'pics/'
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hgbkgjbkhvbjhv'
@@ -89,7 +91,6 @@ def exeQuery(query, data, dbEdit ):
     #print(res)
     return  res
 
-
 @app.route("/test")
 def testMethod():
     return str(exeQuery("SELECT * from konto", None, False))
@@ -105,10 +106,24 @@ def callStoredProc(procName, data):
         myDatabase.commit()
         cursor.close()
         myDatabase.close()
+        
 
-    for x in proc:
-        print(x)
-
+def callSoredProcReturn(procName, data):
+    try:
+        myDatabase = mysql.connector.connect(**dbLoginInfo)
+        cursor = myDatabase.cursor()
+    except mysql.connector.Error as e:
+        print('[ERROR WHILE CONNECTING TO DATABASE]: ', e)
+    else:
+    
+        reVal = cursor.callproc(procName, data)
+        #reVal = cursor.fetchone()
+       
+        myDatabase.commit()
+        cursor.close()
+        myDatabase.close()
+       
+        return reVal
 
 @app.route("/account/new", methods= ['POST'])
 def newAccount():
@@ -236,11 +251,11 @@ def status():
 
 
 """
-{"account": "jj@gmail.com",  
+{"account": "jj@gmail.de",  
  "profilInfo": 
     {
       "profilName": "Doe",
-      "profilbilid": "???",
+      //"profilbilid": //Profilbild muss seperat geschickt werden
       "beschreibung": "Balaklaknln"
     },
     "merkmal":{
@@ -248,21 +263,59 @@ def status():
         "geschlecht": 1,
         "groesse": 125
     }
+    "Tier":{
+        "tierID": 2
+    }
  }
  #Wat about Tier
 """
+#untestet
+#oben das json Format, welches /profil/create benötigt
 @app.route("/profil/create", methods= ['POST'])
+@token_required
 def addEntry():
-   data = request.get_json()
-   print(type(data))
-   print(data)
-   print('----------')
-   print( data['profilInfo']['profilName'])
+   json = request.get_json()
+   try:
+       merkmalID = callSoredProcReturn('create_merkmal', (json['merkmal']['alter'],json['merkmal']['geschlecht'],json['merkmal']['groesse'],json['Tier']['tierID'],0))
+       #print(merkmalID[4])
+       vormerkListeID = callSoredProcReturn('create_vormerkliste',(0,))
+       likeListeID = callSoredProcReturn('create_likeliste',(0,))
+       query = 'INSERT INTO Profil (profilName ,beschreibung,bewertungPositiv, bewertungNegativ, konto_email, Merkmal_merkmaleID, LikeListe_likelisteID, VormerkListe_vormerkListeID) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
+       exeQuery(query, (json['profilInfo']['profilName'],json['profilInfo']['beschreibung'],0,0,json['account'],merkmalID[4],likeListeID[0],vormerkListeID[0]), True)
+   except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+   
    return Response(status=200)
+
+#ungestestet
+@app.route("/profil/uploadImage", methods= ['POST'])
+@token_required
+def uploadImage():
+    accEmail =  request.form.get('accountEmail')
+    profilName = request.form.get('profilName') 
+
+    dirOfUser = UPLOAD_FOLDER + '/'+accEmail
+    if not os.path.exists(dirOfUser):
+       os.makedirs(dirOfUser)
+
+    if 'image'  in request.files:
+        
+        pic = request.files['image']
+        path = os.path.join(dirOfUser, profilName)
+        pic.save(path)
+        try:
+            exeQuery('UPDATE Profil SET profilbild = %s WHERE profilName = %s AND konto_email = %s)  ', (path, profilName, accEmail), True)
+        except mysql.connector.Error as e:  
+            print(e) 
+            return abort(400, '[ERROR]: '+str(e))
+    else:
+        abort(400, '[ERROR]: form param "pic" ic missing')
    
 
 
-""" try:
+""" 
+try:
         query = ' '
         data = exeQuery(query,(), True)
     except mysql.connector.Error as e: 
@@ -272,11 +325,6 @@ def addEntry():
         return  Response(status = 200)
 """
    
-
-
-
-
-
 @app.route("/static/<path:path>")
 def send_static():
     return send_from_directory('static', path)
