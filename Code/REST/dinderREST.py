@@ -1,7 +1,7 @@
 from flask import Flask, request, Response, abort,jsonify,request,make_response
 import jwt #jsonwebToken #v1.7.1. bei aktueller Version Fehler beim Wrapper decode: It is required that you pass in a value for the \"algorithms\" argument when calling decode().
 import datetime
-from flask.helpers import send_from_directory
+from flask.helpers import send_file, send_from_directory
 from mysql.connector import Error
 import mysql.connector
 import os 
@@ -26,7 +26,7 @@ dbLoginInfo = {
     'database' : 'dindersql'
 }
 
-UPLOAD_FOLDER = 'pics/'
+UPLOAD_FOLDER = 'rest/pics/'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 
 app = Flask(__name__)
@@ -90,8 +90,6 @@ def exeQuery(query, data, dbEdit ):
    
     cursor.close()
     myDatabase.close()
-    #print(type(res))
-    #print(res)
     return  res
 
 @app.route("/test")
@@ -253,6 +251,8 @@ def status():
         return  jsonify({'istOnline' : data})
 
 
+
+
 """
 {
  "profilInfo": 
@@ -265,12 +265,11 @@ def status():
         "alter":3, 
         "geschlecht": 1,
         "groesse": 125
-    }
+    },
     "Tier":{
         "tierID": 2
     }
  }
- #Wat about Tier
 """
 #untestet
 #oben das json Format, welches /profil/create benötigt
@@ -297,20 +296,15 @@ def createProfil():
 @token_required
 def uploadImage():
     dicUser = decodeToken(request.args.get('token'))
+    
     profilName = request.form.get('profilName') 
-
     dirOfUser = UPLOAD_FOLDER + dicUser['user']
     if not os.path.exists(dirOfUser):
        os.makedirs(dirOfUser)
 
     if 'image'  in request.files:
-        
+
         pic = request.files['image']
-        print('============')
-        print(dirOfUser)
-        print(profilName)
-        print(pic.filename)
-        print('============')
         newImageName =profilName + pathlib.Path(pic.filename).suffix
         path = os.path.join(dirOfUser, newImageName)
         pic.save(path)
@@ -324,42 +318,97 @@ def uploadImage():
     else:
         abort(400, '[ERROR]: form param "pic" ic missing')
 
-
-"""
-{"account": "jj@gmail.de",  
- "profilInfo": 
-    {
-      "profilName": "Doe",
-      //"profilbilid": //Profilbild muss seperat geschickt werden
-      "beschreibung": "Balaklaknln"
-    },
-    "merkmal":{
-        "alter":3, 
-        "geschlecht": 1,
-        "groesse": 125
-    }
-    "Tier":{
-        "tierID": 2
-    }
- }
- #Wat about Tier
-""" 
-@app.route("/list/addEntry", methods= ['POST'])
+ 
+@app.route("/profil/delete", methods= ['POST'])
 @token_required
-def addEntry():
-    return Response(status = 200)
+def deleteProfil():
+    dicUser = decodeToken(request.args.get('token'))
+    profilName = request.args.get('profilName')
 
+    path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), False)
+    
+    print(path)
+    if path[0][0] != None:
+        try:
+            os.remove(path[0][0])
+        except OSError:
+            pass
 
-""" 
-try:
-        query = ' '
-        data = exeQuery(query,(), True)
-    except mysql.connector.Error as e: 
+    try:
+        fkID = exeQuery('SELECT Merkmal_merkmaleID,LikeListe_likelisteID,VormerkListe_vormerkListeID, profilID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), False)
+        exeQuery('DELETE FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), True)
+        exeQuery('DELETE FROM Merkmal WHERE merkmaleID = %s', (fkID[0][0],), True)
+
+        
+            #reihenfolge wahrscheinlich umdrehen
+        exeQuery('DELETE FROM LikeListe WHERE likelisteID = %s', (fkID[0][1],), True)
+        exeQuery('DELETE FROM LikeListe_Profil WHERE Profil_profilID = %s', (fkID[0][3],), True)
+        
+        exeQuery('DELETE FROM VormerkListe WHERE vormerkListeID = %s', (fkID[0][2],), True)
+        exeQuery('DELETE FROM VormerkListe_Profil WHERE Profil_profilID = %s AND Profil_konto_email = %s', (fkID[0][3], dicUser['user'],), True)
+            
+        exeQuery('DELETE FROM MatchListe WHERE Profil_profilID = %s AND Profil_konto_email = %s', (fkID[0][3], dicUser['user'],), True)
+        exeQuery('DELETE FROM Profil_MatchListe WHERE Profil_profilID = %s AND Profil_konto_email = %s', (fkID[0][3], dicUser['user'],), True)
+        
+        exeQuery('DELETE FROM Suchfilter WHERE Profil_profilID = %s AND Profil_konto_email = %s', (fkID[0][3], dicUser['user'],), True)
+            #macht vllt. mucken wegen der 1 im namen 
+            #exeQuery('DELETE FROM FreundeBeziehung WHERE (Profil_profilID = %s AND Profil_konto_email = %s) OR (Profil_profilID 1 = %s AND Profil_konto_email 1 = %s)', (fkID[3], dicUser['user']), True)
+    except mysql.connector.Error as e:  
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
-    else: 
-        return  Response(status = 200)
-"""
+    return Response(status = 200)
+
+#Work in Progress. Maybe wrong return type
+@app.route("/profil/getPic", methods= ['GET'])
+@token_required
+def getPic():
+    dicUser = decodeToken(request.args.get('token'))
+    profilName = request.args.get('profilName')
+
+    path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), False)
+
+    if path[0][0] != None:
+        if os.path.isfile(path[0][0]):
+           
+            return send_file('pics/jj@gmail.de/DelProf.png')
+        else:
+            return abort(400, '[ERROR]: Image not found')
+    else:
+        return abort(400, '[ERROR]: No image stored')
+
+#Work in Progress
+@app.route("/profil/friendlist/addFriendRequest", methods= ['GET'])
+@token_required
+def getPic():
+    dicUser = decodeToken(request.args.get('token'))
+    userProfil = request.args.get('userProfil')
+
+    #the infos of the profil who will get the request
+    reciverProfilName = request.args.get('reciverProfilName')
+    reciverEmail = request.args.get('reciveremail')
+    #Todo autoincrement beziehungID
+    exeQuery('INSERT INTO freundeBeziehung VALUES ')
+    return Response(status = 200)
+
+#what about pic? Can I send pic AND json
+@app.route("/mostAttractive", methods= ['GET'])
+def mostAttractive():
+    numOfAcc = request.args.get('howMany') 
+    print(numOfAcc)
+    payload = []
+    rowAsDict = {}
+    try:
+       data = exeQuery('SELECT * FROM Profil ORDER BY (bewertungPositiv - bewertungNegativ) DESC LIMIT 10', None, False)
+       for row in data:
+           rowAsDict = {'id': row[0], 'profilname': row[1], 'discription': row[3], 'positive':row[4], 'negative':row[5],'mail': row[6]}
+           payload.append(rowAsDict)
+    
+       return jsonify(payload) #is it a problem [{...}, {...}] because of []
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+
+
    
 @app.route("/static/<path:path>")
 def send_static():
