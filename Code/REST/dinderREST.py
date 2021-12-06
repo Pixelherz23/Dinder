@@ -18,6 +18,9 @@ from flask_cors import CORS, cross_origin
 # Maybe delete "," of tuple with multiple entries?
 #Create account/profilfolder for pics
 #MErke ein User darf nicht zwei Profile haben die gleich heißen!!
+#Demand paths:
+#get Profils By name of merkmal
+#getUserInfo
 dbLoginInfo = {
     'host' : 'localhost',
     'port': '3306',
@@ -376,25 +379,88 @@ def getPic():
     else:
         return abort(400, '[ERROR]: No image stored')
 
-#Work in Progress
-@app.route("/profil/friendlist/addFriendRequest", methods= ['GET'])
+#tested
+#Can the reciver send a friendrequest after he got the request??
+@app.route("/profil/friendlist/addFriendRequest", methods= ['POST'])
 @token_required
-def getPic():
-    dicUser = decodeToken(request.args.get('token'))
-    userProfil = request.args.get('userProfil')
+def addFriendRequest():
+    reqUser = decodeToken(request.args.get('token'))['user']
+    reqProfil = request.args.get('requestProfilName')
 
-    #the infos of the profil who will get the request
     reciverProfilName = request.args.get('reciverProfilName')
-    reciverEmail = request.args.get('reciveremail')
-    #Todo autoincrement beziehungID
-    exeQuery('INSERT INTO freundeBeziehung VALUES ')
-    return Response(status = 200)
+    reciverEmail = request.args.get('reciverEmail')
+    try:
+        reqProfilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (reqProfil,reqUser), False)
+    
+        reciverProfilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (reciverProfilName,reciverEmail), False)
 
+        print(reqProfilID)
+        print(reciverProfilID)
+        #checkIfALreadyThere exeQuery('SELECT EXISTS(SELECT * FROM FreundeBeziehung WHERE  ) ')
+        query = 'INSERT INTO FreundeBeziehung (Profil_profilID, Profil_konto_email, Profil_profilID1, Profil_konto_email1, istAkzeptiert) VALUES (%s,%s, %s, %s,%s)'
+        exeQuery(query, (reqProfilID[0][0],reqUser,reciverProfilID[0][0],reciverEmail,0), True)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+
+#testet
+@app.route("/profil/friendlist/acceptFriendRequest", methods= ['POST'])
+@token_required
+def acceptFriendRequest():
+    #the user/profil who accepts the request
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+    try:
+        profilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (profilName,user), False)
+    
+        #the user/profil who sent the friendrequest
+        reqProfil = request.args.get('requestFromProfil')
+        reqUser = request.args.get('requestFromUser')
+        reqProfilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (reqProfil,reqUser), False)
+
+        query = 'UPDATE FreundeBeziehung SET istAkzeptiert = 1 WHERE Profil_profilID = %s AND Profil_profilID1 = %s AND Profil_konto_email1 = %s '
+        exeQuery(query, (reqProfilID[0][0],profilID[0][0], user), True)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+
+#tested
+#use to delete a Friendship or to decline a Friendshiprequest
+@app.route("/profil/friendlist/deleteFriendshipOrRequest", methods= ['POST'])
+@token_required
+def declineOrDeleteFriendRequest():
+    #the user/profil who wants to delete the FriendRequest
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+    
+    try:
+        profilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (profilName,user), False)
+        
+        #the user/profil who is the victim :(
+        notFriendProfil = request.args.get('notFriendProfil')
+        notFriendUser = request.args.get('notFriendUser')
+        notFriendProfilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (notFriendProfil,notFriendUser), False)
+
+        query ='DELETE FROM FreundeBeziehung WHERE (Profil_profilID = %s AND Profil_profilID1 = %s AND Profil_konto_email1 = %s) OR (Profil_profilID = %s AND Profil_profilID1 = %s AND Profil_konto_email1 = %s)'
+        exeQuery(query,(profilID[0][0],notFriendProfilID[0][0],notFriendUser, notFriendProfilID[0][0], profilID[0][0],user), True)
+    
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+
+
+
+
+    
 #what about pic? Can I send pic AND json
 @app.route("/mostAttractive", methods= ['GET'])
 def mostAttractive():
-    numOfAcc = request.args.get('howMany') 
-    print(numOfAcc)
     payload = []
     rowAsDict = {}
     try:
