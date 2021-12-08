@@ -19,8 +19,16 @@ from flask_cors import CORS, cross_origin
 #Create account/profilfolder for pics
 #MErke ein User darf nicht zwei Profile haben die gleich heißen!!
 #Demand paths:
-#get Profils By name of merkmal
+#get Profils By name of merkmal (search)
 #getUserInfo
+
+#getFriendRequests
+
+#changeData
+#likeProfiland Add to Likelist
+#everytime return email when getFriendlist
+#change error return to jsonfiy
+#default profilpic
 dbLoginInfo = {
     'host' : 'localhost',
     'port': '3306',
@@ -321,6 +329,9 @@ def uploadImage():
     else:
         abort(400, '[ERROR]: form param "pic" ic missing')
 
+
+
+
  
 @app.route("/profil/delete", methods= ['POST'])
 @token_required
@@ -454,7 +465,45 @@ def declineOrDeleteFriendRequest():
     else:
         return Response(status = 200)
 
+#tested
+@app.route("/profil/friendlist/getFriends", methods= ['GET'])
+@token_required
+def getFriends():
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+    try:
+        profilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (profilName,user), False)
+    except mysql.connector.Error as e:  
+            print(e) 
+            return abort(400, '[ERROR]: '+str(e))
+    data = exeQuery('SELECT Profil_profilID, Profil_konto_email, Profil_profilID1, Profil_konto_email1 FROM FreundeBeziehung WHERE istAkzeptiert = 1 AND ((Profil_konto_email = %s AND Profil_profilID = %s) OR (Profil_konto_email1 = %s AND Profil_profilID1 = %s))', (user,profilID[0][0],user,profilID[0][0]), False)
+    dictJson = {}
+    
+    for index, tuple in enumerate(data):
+     
+        if tuple[1] != user:
+            try:
+                profilName = exeQuery('SELECT profilName FROM Profil WHERE profilID = %s AND konto_email = %s ', (tuple[0],tuple[1]), False)
+            except mysql.connector.Error as e:  
+                print(e) 
+                return abort(400, '[ERROR]: '+str(e))
+            dictJson[index] = {'email': tuple[1], 'profil': profilName[0][0]}
+          
 
+        elif tuple[3] != user:
+            try:
+                profilName = exeQuery('SELECT profilName FROM Profil WHERE profilID = %s AND konto_email = %s ', (tuple[2],tuple[3]), False)
+            except mysql.connector.Error as e:  
+                print(e) 
+                return abort(400, '[ERROR]: '+str(e))
+
+            dictJson[index] = {'email': tuple[3], 'profil': profilName[0][0]}
+           
+
+    if dictJson is None: 
+        return jsonify({'[ERROR]': 'No friendships found'}),204
+    else:
+        return jsonify(dictJson)
 
 
     
@@ -474,8 +523,71 @@ def mostAttractive():
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
 
+#A user can upvote multiple times???
+@app.route("/setPositive", methods= ['POST'])
+@token_required
+def setPosvitive():
+    profilName = request.args.get('profilName')
+    mail = request.args.get('userMail')
+    #Watch out: what if multiple profils Better when profilID
+    try:
+        exeQuery('UPDATE Profil SET bewertungPositiv = bewertungPositiv + 1 WHERE profilName = %s AND konto_email = %s', (profilName, mail), True)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+#testet
+@app.route("/setNegative", methods= ['POST'])
+@token_required
+def setNegative():
+    profilName = request.args.get('profilName')
+    mail = request.args.get('userMail')
+    #Watch out: what if multiple profils Better when profilID
+    try:
+        exeQuery('UPDATE Profil SET bewertungNegativ = bewertungNegativ + 1 WHERE profilName = %s AND konto_email = %s', (profilName, mail), True)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+#testet
+@app.route("/getJudgment", methods= ['GET'])
+@token_required
+def getJudgment():
+    profilName = request.args.get('profilName')
+    mail = request.args.get('userMail')
+    try:
+        data = exeQuery('SELECT bewertungPositiv, bewertungNegativ FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, mail), False)
+        return jsonify({'valuePositive':data[0][0],'valueNegative':data[0][1]}), 200
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
 
-   
+@app.route("/profil/getProfilFromOtherUser", methods= ['GET'])
+@token_required
+def getProfil():
+    profilName = request.args.get('profilName')
+    mail = request.args.get('userMail')
+
+    profilName = exeQuery('SELECT * FROM Profil WHERE  profilName= %s AND konto_email = %s ', (profilName,mail), False)
+    dictProfilData = {
+        'profilID':profilName[0][0],
+        'profilName':profilName[0][1],
+        'profilBildPfad':profilName[0][2],
+        'beschreibung':profilName[0][3],
+        'bewertungPositiv':profilName[0][4],
+        'bewertungNegativ':profilName[0][5],
+        'konto_email':profilName[0][6],
+        'Merkmale_merkmalID':profilName[0][7],
+        'LikeListe_likelisteID':profilName[0][8],
+        'VormerkListe_vormerkListeID':profilName[0][9],
+
+    }
+    return jsonify(dictProfilData)
+
+
+    
 @app.route("/static/<path:path>")
 def send_static():
     return send_from_directory('static', path)
