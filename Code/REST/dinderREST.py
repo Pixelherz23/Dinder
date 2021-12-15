@@ -222,24 +222,29 @@ def getGPS():
     
     try:
         #print(dicUser['user'])
-        data = exeQuery('SELECT standort FROM konto WHERE email = %s ', (dicUser['user'],), False)
+        data = exeQuery('SELECT lat, lg FROM konto WHERE email = %s ', (dicUser['user'],), False)
+        print(data[0][0])
+        print(data[0][1])
     except mysql.connector.Error as e:  
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
     else: 
-        return  jsonify({'gps' : data})
+        return  jsonify({'lat' : data[0][0],'lg' : data[0][1]})
 
    # return  jsonify({'message' : 'This is only available for people with valid tokens.'})
 
+#untested
 @app.route('/setGps', methods= ['POST'])
 @token_required
 def setGPS():
-    gps = str(request.form.get('gps'))
+    lat = str(request.form.get('lat'))
+    lg = str(request.form.get('lg'))
     dicUser = decodeToken(request.args.get('token')) 
+
     print(dicUser)
     try:
         print(dicUser['user'])
-        data = exeQuery('UPDATE konto SET standort = %s WHERE email = %s ', (gps,dicUser['user'],), True)
+        data = exeQuery('UPDATE konto SET lat = %s , lg = %s WHERE email = %s ', (lat,lg,dicUser['user'],), True)
     except mysql.connector.Error as e: 
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
@@ -380,11 +385,11 @@ def getPic():
     profilName = request.args.get('profilName')
 
     path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), False)
-
+    print(path)
     if path[0][0] != None:
         if os.path.isfile(path[0][0]):
-           
-            return send_file(path[0][0])
+           path2 = '/home/kstieler/project_env/'+path[0][0]
+           return send_file(path2)
         else:
             return abort(400, '[ERROR]: Image not found')
     else:
@@ -398,11 +403,11 @@ def getPicFromOtherUser():
     mail = request.args.get('mail')
 
     path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, mail), False)
-
+    print(path)
     if path[0][0] != None:
         if os.path.isfile(path[0][0]):
-           
-            return send_file('pics/jj@gmail.de/DelProf.png')
+            path2 = '/home/kstieler/project_env/'+path[0][0]
+            return send_file(path2)
         else:
             return abort(400, '[ERROR]: Image not found')
     else:
@@ -603,16 +608,29 @@ def getProfil():
 
     }
     return jsonify(dictProfilData)
+
 """
-@app.route("/profil/getProfilFromOtherUser", methods= ['GET'])
+@app.route("/searchProfils", methods= ['POST'])
 @token_required
-def getProfil():
-    profilName = request.args.get('spezies')
-    rasse = request.args.get('rasse')
-    geschlecht = request.args.get('geschlecht')
-    groeße = request.args.get('gps')
-    query = 'SELECT '
-"""
+def searchProfils():
+    species = request.args.get('species')
+    race = request.args.get('race')
+    gender = request.args.get('gender')
+    lat = request.args.get('lat')
+    lg =  request.args.get('lg')
+
+    query = 'SELECT * FROM Profil WHERE  '
+    valAsDict = {'spezies':species,'rasse': race,'geschlecht' :gender,}
+    for key in valAsDict:
+            if valAsDict[key] is not None:
+                query = query + ' AND ' + key+ '= %s'
+    exeQuery(query, (species,race,gender), False)
+
+    if lat is not None and  lg is not None :
+        executeArray
+    return Response(status = 200)
+    """
+ 
 
 
 
