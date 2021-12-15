@@ -16,9 +16,9 @@ from flask_cors import CORS, cross_origin
 
 #TODO
 # Maybe delete "," of tuple with multiple entries?
-#Create account/profilfolder for pics
 #MErke ein User darf nicht zwei Profile haben die gleich heißen!!
 #Demand paths:
+
 #get Profils By name of merkmal (search)
 #getUserInfo
 
@@ -294,8 +294,8 @@ def createProfil():
        #print(merkmalID[4])
        vormerkListeID = callSoredProcReturn('create_vormerkliste',(0,))
        likeListeID = callSoredProcReturn('create_likeliste',(0,))
-       query = 'INSERT INTO Profil (profilName ,beschreibung,bewertungPositiv, bewertungNegativ, konto_email, Merkmal_merkmaleID, LikeListe_likelisteID, VormerkListe_vormerkListeID) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
-       exeQuery(query, (json['profilInfo']['profilName'],json['profilInfo']['beschreibung'],0,0,dicUser['user'],merkmalID[4],likeListeID[0],vormerkListeID[0]), True)
+       query = 'INSERT INTO Profil (profilName, profilbild ,beschreibung,bewertungPositiv, bewertungNegativ, konto_email, Merkmal_merkmaleID, LikeListe_likelisteID, VormerkListe_vormerkListeID) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+       exeQuery(query, (json['profilInfo']['profilName'],'rest/pics/DefaultPic.png',json['profilInfo']['beschreibung'],0,0,dicUser['user'],merkmalID[4],likeListeID[0],vormerkListeID[0]), True)
    except mysql.connector.Error as e:  
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
@@ -380,6 +380,24 @@ def getPic():
     profilName = request.args.get('profilName')
 
     path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, dicUser['user']), False)
+
+    if path[0][0] != None:
+        if os.path.isfile(path[0][0]):
+           
+            return send_file(path[0][0])
+        else:
+            return abort(400, '[ERROR]: Image not found')
+    else:
+        return abort(400, '[ERROR]: No image stored')
+
+@app.route("/profil/getPicFromOtherUser", methods= ['GET'])
+@token_required
+def getPicFromOtherUser():
+    
+    profilName = request.args.get('profilName')
+    mail = request.args.get('mail')
+
+    path = exeQuery('SELECT profilbild FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, mail), False)
 
     if path[0][0] != None:
         if os.path.isfile(path[0][0]):
@@ -585,6 +603,17 @@ def getProfil():
 
     }
     return jsonify(dictProfilData)
+"""
+@app.route("/profil/getProfilFromOtherUser", methods= ['GET'])
+@token_required
+def getProfil():
+    profilName = request.args.get('spezies')
+    rasse = request.args.get('rasse')
+    geschlecht = request.args.get('geschlecht')
+    groeße = request.args.get('gps')
+    query = 'SELECT '
+"""
+
 
 
     
