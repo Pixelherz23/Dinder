@@ -11,6 +11,7 @@ from functools import wraps
 from  pathlib import Path
 import pathlib
 from flask_cors import CORS, cross_origin
+import time 
 
 
 
@@ -32,9 +33,7 @@ from flask_cors import CORS, cross_origin
 #get Profils By name of merkmal (search)
 #getUserInfo
 
-#getFriendRequests
 
-#changeData
 #likeProfiland Add to Likelist
 #everytime return email when getFriendlist
 #change error return to jsonfiy
@@ -180,13 +179,31 @@ def getData():
     user = decodeToken(request.args.get('token'))['user']
     try:
         query = 'SELECT * FROM konto  WHERE email = %s'
+        
         data = exeQuery(query,(user,), False) #<= get error raise ValueError("Could not process parameters") when "," is missing
+
+        print(data)
+
+        dictJson = {
+            'email' : data[0][0], 
+            'nachname': data[0][1], 
+            'vorname': data[0][2], 
+            'telefon' : data[0][3], 
+            'geburtstag' : data[0][4], 
+            'passwort' : data[0][5], 
+            'institution': data[0][6], 
+            'istOnline': data[0][7], 
+            'inaktiv': data[0][8], 
+            'istGesperrt': data[0][9], 
+            'lat' : data[0][11], 
+            'lg' : data[0][12], 
+             } 
 
     except mysql.connector.Error as e: 
         print(e) 
         return jsonify('[ERROR]: '+str(e))
     else:
-        return jsonify(data), 200
+        return jsonify(dictJson), 200
 
 #untested
 #when email changed what about the key (konto_email for example)
@@ -608,7 +625,80 @@ def getFriendRequest():
     else:
         return jsonify(dictJson)
 
+@app.route("/profil/rememberList/setEntry", methods= ['POST'])
+@token_required
+def rememberSetEntry():
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
 
+    profilToSave = request.args.get('profilToSave')
+    profilMail = request.args.get('mailToSave')
+    try:
+
+        rememberListID =  exeQuery('SELECT VormerkListe_vormerkListeID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, user), False)
+        profilToSaveID =   exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilToSave, profilMail), False)
+        
+        print(rememberListID[0][0])
+        print(profilToSaveID[0][0])
+        print(profilMail)
+
+        exeQuery('INSERT INTO VormerkListe_Profil (VormerkListe_vormerkListeID, Profil_profilID, Profil_konto_email) VALUES (%s,%s,%s) ', (rememberListID[0][0],profilToSaveID[0][0],profilMail), True)
+        
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+
+@app.route("/profil/rememberList/deleteEntry", methods= ['POST'])
+@token_required
+def rememberListdeleteEntry():
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+
+    profilToDelete = request.args.get('profilToDelete')
+    mailToDelete= request.args.get('mailToDelete')
+    try:
+        rememberListID =  exeQuery('SELECT VormerkListe_vormerkListeID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, user), False)
+        profilToDeleteID =   exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilToDelete, mailToDelete), False)
+        exeQuery('DELETE FROM VormerkListe_Profil WHERE VormerkListe_vormerkListeID = %s AND Profil_profilID = %s AND Profil_konto_email = %s', (rememberListID[0][0],profilToDeleteID[0][0],mailToDelete), True)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return Response(status = 200)
+
+#todo
+#what if list is empty
+@app.route("/profil/rememberList/getEntries", methods= ['GET'])
+@token_required
+def rememberGetEntry():
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+
+    try:
+        rememberListID =  exeQuery('SELECT VormerkListe_vormerkListeID FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, user), False)
+        print(rememberListID[0][0])
+
+        query = 'SELECT * From VormerkListe_Profil WHERE  VormerkListe_vormerkListeID = %s'
+        data = exeQuery(query, (rememberListID[0][0],), False)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+
+    dictJson = {}
+
+    for index, tuple in enumerate(data):
+        dictJson[index] = {
+            'profilID': tuple[1], 
+            'profilName': exeQuery('SELECT profilName FROM Profil WHERE profilID = %s AND konto_email = %s', (tuple[1], tuple[2]), False)[0][0],
+            'email': tuple[2],
+
+             } 
+    if dictJson is None: 
+        return jsonify({'[ERROR]': 'No profils in rememberList found'}),204
+    else:
+        return jsonify(dictJson),200
     
 #what about pic? Can I send pic AND json
 @app.route("/mostAttractive", methods= ['GET'])
@@ -806,9 +896,16 @@ def searchProfilsByGPS():
     lat = request.args.get('lat')
     lg =  request.args.get('lg')
     distance = request.args.get('distance')
-
+    print(user)
+    print(lat)
+    print(lg)
+    print(distance)
     try:
-        data= exeQuery('CALL get_accounts_in_range(%s,%s,%s, %s)', (lat,lg, distance, user), False)
+        #query = 'CALL get_accounts_in_range('+ ',' + lat + ',' + lg + ',' + distance + ',' + user +')'
+        #data= exeQuery(query, None, False)
+        data= exeQuery('CALL get_accounts_in_range(%s,%s,%s,%s)', (lat,lg, distance, user), False)
+        
+        #data = callSoredProcReturn('get_accounts_in_range', (lat,lg, distance, user))
         print(data)
         
     except mysql.connector.Error as e: 
