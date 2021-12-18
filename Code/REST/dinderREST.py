@@ -19,6 +19,16 @@ from flask_cors import CORS, cross_origin
 #MErke ein User darf nicht zwei Profile haben die gleich heißen!!
 #Demand paths:
 
+
+#Prio:
+#getMerkmale
+#getAccInfo
+#likeliste
+#mnerkliste
+
+
+
+
 #get Profils By name of merkmal (search)
 #getUserInfo
 
@@ -164,7 +174,23 @@ def newAccount():
         return Response(status = 200)
 
 #untested
-#when email changed what about the key
+@app.route("/account/getData", methods= ['GET'])
+@token_required
+def getData():
+    user = decodeToken(request.args.get('token'))['user']
+    try:
+        query = 'SELECT * FROM konto  WHERE email = %s'
+        data = exeQuery(query,(user,), False) #<= get error raise ValueError("Could not process parameters") when "," is missing
+
+    except mysql.connector.Error as e: 
+        print(e) 
+        return jsonify('[ERROR]: '+str(e))
+    else:
+        return jsonify(data), 200
+
+#untested
+#when email changed what about the key (konto_email for example)
+"""
 @app.route("/account/update", methods= ['POST'])
 @token_required
 def accUpdate():
@@ -189,6 +215,7 @@ def accUpdate():
         return abort(400, '[ERROR]: '+str(e))
     else: 
         return  Response(status = 200)
+"""
 
 @app.route('/login')
 def login():
@@ -214,7 +241,7 @@ def login():
     else:
         return  abort(400, '[ERROR]: One of the vars or both has no value')
 
-@app.route('/getGps')
+@app.route('/getGPS')
 @token_required
 def getGPS():
     
@@ -234,7 +261,7 @@ def getGPS():
    # return  jsonify({'message' : 'This is only available for people with valid tokens.'})
 
 #untested
-@app.route('/setGps', methods= ['POST'])
+@app.route('/setGPS', methods= ['POST'])
 @token_required
 def setGPS():
     lat = str(request.form.get('lat'))
@@ -266,6 +293,19 @@ def status():
         #data is 1 or 0
         return  jsonify({'istOnline' : data})
 
+@app.route("/setStatus", methods= ['POST'])
+@token_required
+def setStatus():
+    dicUser = decodeToken(request.args.get('token'))
+    status = request.args.get('status')
+    
+    try:
+        exeQuery('UPDATE konto SET istOnline = %s WHERE email = %s', ( status ,dicUser['user'],), False)
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else: 
+        return  Response(status = 200)
 
 
 
@@ -332,7 +372,7 @@ def uploadImage():
         else:
             return Response(status = 200)
     else:
-        abort(400, '[ERROR]: form param "pic" ic missing')
+        abort(400, '[ERROR]: form param "image" ic missing')
 
 
 
@@ -529,6 +569,46 @@ def getFriends():
         return jsonify(dictJson)
 
 
+@app.route("/profil/friendlist/getFriendRequest", methods= ['GET'])
+@token_required
+def getFriendRequest():
+    user = decodeToken(request.args.get('token'))['user']
+    profilName = request.args.get('profilName')
+    try:
+        profilID = exeQuery('SELECT profilID FROM Profil WHERE profilName = %s AND konto_email = %s ', (profilName,user), False)
+    except mysql.connector.Error as e:  
+            print(e) 
+            return abort(400, '[ERROR]: '+str(e))
+    data = exeQuery('SELECT Profil_profilID, Profil_konto_email, Profil_profilID1, Profil_konto_email1 FROM FreundeBeziehung WHERE istAkzeptiert = 0 AND ((Profil_konto_email = %s AND Profil_profilID = %s) OR (Profil_konto_email1 = %s AND Profil_profilID1 = %s))', (user,profilID[0][0],user,profilID[0][0]), False)
+    dictJson = {}
+    
+    for index, tuple in enumerate(data):
+     
+        if tuple[1] != user:
+            try:
+                profilName = exeQuery('SELECT profilName FROM Profil WHERE profilID = %s AND konto_email = %s ', (tuple[0],tuple[1]), False)
+            except mysql.connector.Error as e:  
+                print(e) 
+                return abort(400, '[ERROR]: '+str(e))
+            dictJson[index] = {'email': tuple[1], 'profil': profilName[0][0]}
+          
+
+        elif tuple[3] != user:
+            try:
+                profilName = exeQuery('SELECT profilName FROM Profil WHERE profilID = %s AND konto_email = %s ', (tuple[2],tuple[3]), False)
+            except mysql.connector.Error as e:  
+                print(e) 
+                return abort(400, '[ERROR]: '+str(e))
+
+            dictJson[index] = {'email': tuple[3], 'profil': profilName[0][0]}
+           
+
+    if dictJson is None: 
+        return jsonify({'[ERROR]': 'No friendships found'}),204
+    else:
+        return jsonify(dictJson)
+
+
     
 #what about pic? Can I send pic AND json
 @app.route("/mostAttractive", methods= ['GET'])
@@ -549,9 +629,9 @@ def mostAttractive():
 #A user can upvote multiple times???
 @app.route("/setPositive", methods= ['POST'])
 @token_required
-def setPosvitive():
+def setPositive():
     profilName = request.args.get('profilName')
-    mail = request.args.get('userMail')
+    mail = request.args.get('mail')
     #Watch out: what if multiple profils Better when profilID
     try:
         exeQuery('UPDATE Profil SET bewertungPositiv = bewertungPositiv + 1 WHERE profilName = %s AND konto_email = %s', (profilName, mail), True)
@@ -565,7 +645,7 @@ def setPosvitive():
 @token_required
 def setNegative():
     profilName = request.args.get('profilName')
-    mail = request.args.get('userMail')
+    mail = request.args.get('mail')
     #Watch out: what if multiple profils Better when profilID
     try:
         exeQuery('UPDATE Profil SET bewertungNegativ = bewertungNegativ + 1 WHERE profilName = %s AND konto_email = %s', (profilName, mail), True)
@@ -579,7 +659,7 @@ def setNegative():
 @token_required
 def getJudgment():
     profilName = request.args.get('profilName')
-    mail = request.args.get('userMail')
+    mail = request.args.get('mail')
     try:
         data = exeQuery('SELECT bewertungPositiv, bewertungNegativ FROM Profil WHERE profilName = %s AND konto_email = %s', (profilName, mail), False)
         return jsonify({'valuePositive':data[0][0],'valueNegative':data[0][1]}), 200
@@ -587,11 +667,12 @@ def getJudgment():
         print(e) 
         return abort(400, '[ERROR]: '+str(e))
 
+
 @app.route("/profil/getProfilFromOtherUser", methods= ['GET'])
 @token_required
-def getProfil():
+def getProfilFromOtherUser():
     profilName = request.args.get('profilName')
-    mail = request.args.get('userMail')
+    mail = request.args.get('mail')
 
     profilName = exeQuery('SELECT * FROM Profil WHERE  profilName= %s AND konto_email = %s ', (profilName,mail), False)
     dictProfilData = {
@@ -609,29 +690,168 @@ def getProfil():
     }
     return jsonify(dictProfilData)
 
-"""
-@app.route("/searchProfils", methods= ['POST'])
+@app.route("/profil/getProfils", methods= ['GET'])
 @token_required
-def searchProfils():
+def getProfiles():
+    user = decodeToken(request.args.get('token'))['user']
+    
+    data = exeQuery('SELECT * FROM Profil WHERE konto_email = %s ', (user,), False)
+    
+    dictJson = {}
+    for index, tuple in enumerate(data):
+        dictJson[index] = {
+            'profilID': tuple[0], 
+            'profilName': tuple[1],
+            'profilbild': tuple[2], 
+            'beschreibung': tuple[3], 
+            'bewertungPositiv': tuple[4], 
+            'bewertungNegativ': tuple[5], 
+            'konto_email': tuple[6], 
+            'merkmalID': tuple[7], 
+            'likeListeID': tuple[8], 
+            'vormerkListe': tuple[9], 
+            
+             } 
+    if dictJson is None: 
+        return jsonify({'[ERROR]': 'No profils found'}),204
+    else:
+        return jsonify(dictJson)
+
+"""
+@app.route("/searchProfilsByFilter", methods= ['POST'])
+@token_required
+def searchProfilsByFilter():
     species = request.args.get('species')
     race = request.args.get('race')
     gender = request.args.get('gender')
-    lat = request.args.get('lat')
-    lg =  request.args.get('lg')
 
     query = 'SELECT * FROM Profil WHERE  '
     valAsDict = {'spezies':species,'rasse': race,'geschlecht' :gender,}
     for key in valAsDict:
             if valAsDict[key] is not None:
                 query = query + ' AND ' + key+ '= %s'
-    exeQuery(query, (species,race,gender), False)
 
-    if lat is not None and  lg is not None :
-        executeArray
+   
+    data = exeQuery(query, (species,race,gender), False)
+    print(data)
+
     return Response(status = 200)
     """
- 
 
+"""
+#untested
+@app.route("/searchProfilsByFilterAndGPS", methods= ['GET'])
+@token_required
+def searchProfilsByFilterAndGPS():
+    user = decodeToken(request.args.get('token'))['user']
+    species = request.args.get('species')
+    race = request.args.get('race')
+    gender = request.args.get('gender')
+    lat = request.args.get('lat')
+    lg =  request.args.get('lg')
+    distance = request.args.get('distance')
+
+    query = 'SELECT konto_email FROM Profil INNER JOIN Merkmal ON Merkmal_merkmaleID = merkmaleID INNER JOIN Tier ON Tier_tierID = tierID WHERE '
+    
+    valAsDict = {'spezies':species,'rasse': race,'geschlecht' :gender}
+    tupleMerkmale = ()
+    if species != "":
+        tupleMerkmale = tupleMerkmale + (valAsDict['spezies'],)
+        query = query +  'spezies = %s' + ' AND '
+    
+    if race != "":
+        tupleMerkmale = tupleMerkmale + (valAsDict['rasse'],)
+        query = query +  'rasse = %s' + ' AND '
+    
+    if gender != "":
+        tupleMerkmale = tupleMerkmale + (valAsDict['geschlecht'],)
+        query = query +  'geschlecht = %s'
+
+    print(query)
+    print(tupleMerkmale)
+    dataByFilter = exeQuery(query, tupleMerkmale, False)
+    
+    dataByGPS = exeQuery('CALL get_accounts_in_range(%s,%s,%s, %s)', (lat ,lg, distance,user), False)
+    
+
+    if not dataByGPS : 
+        return jsonify({'[ERROR]': 'No profils nearby'}),204
+    else:
+        dictJson = {}
+        for index, tuple in enumerate(dataByGPS):
+             for indexFilter, tupleFilter in enumerate(dataByFilter):
+                if tuple[6] == tupleFilter[6]:
+                    dictJson[index] = {
+                        'profilID': tuple[0], 
+                        'profilName': tuple[1],
+                        'profilbild': tuple[2], 
+                        'beschreibung': tuple[3],
+                        'bewertungPositiv': tuple[4],
+                        'bewertungNegativ': tuple[5],
+                        'konto_email': tuple[6],
+                        'merkmalID': tuple[7],
+                        'likeListeID': tuple[8],
+                        'vormerkListe': tuple[9], 
+                        } 
+    if not dictJson: 
+        return jsonify({'[ERROR]': 'No profils found'}),204
+    else:
+        return jsonify(dictJson)
+"""
+
+@app.route("/searchProfilsByGPS", methods= ['GET'])
+@token_required
+def searchProfilsByGPS():
+    user = decodeToken(request.args.get('token'))['user']
+    lat = request.args.get('lat')
+    lg =  request.args.get('lg')
+    distance = request.args.get('distance')
+
+    try:
+        data= exeQuery('CALL get_accounts_in_range(%s,%s,%s, %s)', (lat,lg, distance, user), False)
+        print(data)
+        
+    except mysql.connector.Error as e: 
+        return jsonify({'[ERROR]': str(e)}),400
+
+    if not data : 
+        return jsonify({'[ERROR]': 'No profils nearby'}),204
+    else:
+        dictJson = {}
+        for index, tuple in enumerate(data):
+            dictJson[index] = {
+                'profilID': tuple[0], 
+                'profilName': tuple[1],
+                'profilbild': tuple[2], 
+                'beschreibung': tuple[3], 
+                'bewertungPositiv': tuple[4], 
+                'bewertungNegativ': tuple[5], 
+                'konto_email': tuple[6], 
+                'merkmalID': tuple[7], 
+                'likeListeID': tuple[8], 
+                'vormerkListe': tuple[9], 
+                } 
+    
+        return jsonify(dictJson), 200
+
+
+@app.route("/testProcedure", methods= ['GET'])
+#@token_required
+def testProcedure():
+    data= exeQuery('CALL get_accounts_in_range(%s,%s,%s)', (52.327733 , 10.200029, 500), False)
+    
+    print(data)
+    return Response(status = 200)
+
+
+@app.route("/test2", methods= ['GET'])
+#@token_required
+def test2():
+    x = request.args.get('lat')
+    print(x )
+    if x == "" :
+        print("si")
+    return Response(status = 200)
 
 
     
@@ -654,74 +874,3 @@ app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port = 5000)
-
-
-
-    """
-@app.route("/account/login", methods= ['POST'])
-def login():
-    email = request.form.get('email')
-    pwd = request.form.get('pwd')
-    if (email is None) or (pwd is None):
-        return  abort(400, '[ERROR]: Vars have no values')
-
-    else:
-        data = exeQuery('SELECT EXISTS (SELECT 1 FROM konto WHERE email = %s AND passwort = %s)', (email, pwd), False)
-        if data[0][0] == 1: 
-            return Response(status = 200)
-            #maybe return website?
-        else:
-            return  abort(400, '[ERROR]:Wrong email or passwort')
-
-@app.route("/getGps", methods= ['POST'])
-def getGPS():
-    email = request.form.get('email')
-    pwd = request.form.get('pwd')
-    if (email is None) or (pwd is None):
-        return  abort(400, '[ERROR]: Vars have no values')
-
-    else:
-        data = getDataFromDB('SELECT EXISTS (SELECT 1 FROM konto WHERE email = %s AND passwort = %s)', email, pwd)
-        if data[0][0] == 1: 
-            return getDataFromDB('SELECT standort FROM konto WHERE email = %', email)
-        else:
-            return  abort(400, '[ERROR]:Wrong email or passwort')
-"""
-
-""" def getDataFromDB(query, *data):
-    
-    try:
-        myDatabase = mysql.connector.connect(**dbLoginInfo)
-        cursor = myDatabase.cursor()
-    except mysql.connector.Error as e:
-        print('[ERROR WHILE CONNECTING TO DATABASE]: ', e)
-    else:
-        if data is None:
-            cursor.execute(query)
-            data = cursor.fetchall()
-        else: 
-            cursor.execute(query, data)
-            data = cursor.fetchall()
-
-        cursor.close()
-        myDatabase.close()
-        print(type(data))
-    return data
-
-def editDatabase(query, data):
-    try:
-        myDatabase = mysql.connector.connect(**dbLoginInfo)
-        cursor = myDatabase.cursor()
-    except mysql.connector.Error as e:
-        print('[ERROR WHILE CONNECTING TO DATABASE]: ', e)
-    else:
-        if data != None:
-            res = cursor.execute(query, data)
-            myDatabase.commit()
-        else:
-            res = cursor.execute(query)
-            myDatabase.commit() 
-
-        cursor.close()
-        myDatabase.close()
-        return res """
