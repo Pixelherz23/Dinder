@@ -308,7 +308,7 @@ def status():
         return abort(400, '[ERROR]: '+str(e))
     else: 
         #data is 1 or 0
-        return  jsonify({'istOnline' : data})
+        return  jsonify({'istOnline' : data[0][0]})
 
 @app.route("/setStatus", methods= ['POST'])
 @token_required
@@ -324,6 +324,18 @@ def setStatus():
     else: 
         return  Response(status = 200)
 
+@app.route("/getStatus", methods= ['GET'])
+@token_required
+def getStatus():
+    mail = request.args.get('mail')
+    try:
+        data = exeQuery('SELECT istOnline FROM konto WHERE email = %s', (  mail,), False)
+       
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else: 
+        return  jsonify({'status' : data[0][0]})
 
 
 """
@@ -699,7 +711,26 @@ def rememberGetEntry():
         return jsonify({'[ERROR]': 'No profils in rememberList found'}),204
     else:
         return jsonify(dictJson),200
-    
+
+@app.route("/getAnimals", methods= ['GET'])
+def getAnimals():
+    try:
+        data = exeQuery('SELECT * FROM Tier', None, False)
+
+        dictJson = {}
+        for index, tuple in enumerate(data):
+            dictJson[index] = { 
+                'tierID': tuple[0],
+                'spezies': tuple[1],
+                'rasse': tuple[2],
+                } 
+        
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+    else:
+        return jsonify(dictJson)
+
 #what about pic? Can I send pic AND json
 @app.route("/mostAttractive", methods= ['GET'])
 def mostAttractive():
@@ -806,6 +837,48 @@ def getProfiles():
         return jsonify({'[ERROR]': 'No profils found'}),204
     else:
         return jsonify(dictJson)
+
+@app.route("/profil/getProfilsMobile", methods= ['GET'])
+@token_required
+def getProfilsMobile():
+    payload = []
+    rowAsDict = {}
+    user = decodeToken(request.args.get('token'))['user']
+    try:
+      data = exeQuery('SELECT * FROM Profil WHERE konto_email = %s ', (user,), False)
+      for row in data:
+          rowAsDict = {'id': row[0], 'profilname': row[1], 'discription': row[3], 'positive':row[4], 'negative':row[5],'mail': row[6],'likeListID': row[8],'rememberListID': row[9]}
+          payload.append(rowAsDict)
+          
+      return jsonify(payload) #is it a problem [{...}, {...}] because of []
+    except mysql.connector.Error as e:  
+        print(e) 
+        return abort(400, '[ERROR]: '+str(e))
+
+@app.route("/searchProfilsByGPSMobile", methods= ['GET'])
+@token_required
+def searchProfilsByGPSMobile():
+    user = decodeToken(request.args.get('token'))['user']
+    lat = request.args.get('lat')
+    lg =  request.args.get('lg')
+    distance = request.args.get('distance')
+   
+    payload = []
+    rowAsDict = {}
+    try:
+        data= exeQuery('CALL get_accounts_in_range(%s,%s,%s,%s)', (lat,lg, distance, user), False)
+      
+    except mysql.connector.Error as e: 
+        return jsonify({'[ERROR]': str(e)}),400
+
+    if not data : 
+        return jsonify({'[ERROR]': 'No profils nearby'}),204
+    else:
+        for row in data:
+            rowAsDict = {'id': row[0], 'profilname': row[1], 'discription': row[3], 'positive':row[4], 'negative':row[5],'mail': row[6],'likeListID': row[8],'rememberListID': row[9]}
+            payload.append(rowAsDict)
+    
+        return jsonify(payload), 200
 
 """
 @app.route("/searchProfilsByFilter", methods= ['POST'])
