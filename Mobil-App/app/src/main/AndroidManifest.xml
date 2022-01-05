@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.dinder" >
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Dinder"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="m" >
+        <activity
+            android:name=".Activitys.ErgebnisPartner"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Bild_hochladen"
+            android:exported="false" >
+        </activity>
+        <activity
+            android:name=".Activitys.Benutzerdaten"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Merkliste"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.LikeListe"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.FreundesListe"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.RequestListe"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Melden"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.PS_ErgebnisListe"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Partnersuche"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Tierprofil"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.ErgebnisStart"
+            android:exported="false" >
+        </activity>
+        <activity
+            android:name=".Activitys.Tierprofil_erstellen"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Mitgliedschaft"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Accountverwaltung"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.SignUp"
+            android:exported="false" />
+        <activity
+            android:name=".Activitys.Login"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".Activitys.StartSeite"
+            android:exported="false" />
+    </application>
+
+</manifest>
